@@ -149403,6 +149403,12 @@ async function run() {
                 // We restored the cache but it is not a full match.
                 config.saveState();
             }
+            else if (lib_core.getInput("add-rust-environment-hash-key").toLowerCase() == "false") {
+                // We restored the cache with a full match but rust environment hash key is disabled,
+                // so we still need to save the state to allow proper cache updates.
+                lib_core.info("Rust environment hash key disabled - saving state for post-job cache re-creation.");
+                config.saveState();
+            }
             setCacheHitOutput(match);
         }
         else {
