@@ -149461,7 +149461,7 @@ async function macOsWorkaround() {
 }
 async function deleteGHCacheByKey(cacheKey) {
     try {
-        const token = await core.getIDToken() || process.env.GITHUB_TOKEN;
+        const token = await core.getIDToken(core.getInput("github-token") || process.env.GITHUB_TOKEN || '');
         if (!token) {
             throw new Error("GitHub token is required to delete cache when using the github cache provider.");
         }
