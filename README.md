@@ -118,9 +118,9 @@ It is also more effective for repositories with a `Cargo.lock` file. Library
 repositories with only a `Cargo.toml` file have limited benefits, as cargo will
 _always_ use the most up-to-date dependency versions, which may not be cached.
 
-Usage with Stable Rust is the most effective, as a cache is tied to the Rust version.
-Using it with Nightly Rust is less effective as it will throw away the cache every day,
-unless a specific nightly build is being pinned.
+Usage with Stable Rust is the most effective, as by default, the cache is tied to the
+ Rust version. Using it with Nightly Rust is less effective as it will throw away the
+ cache every day, unless a specific nightly build is being pinned.
 
 ## Cache Details
 
@@ -155,6 +155,12 @@ In particular, the workspace crates themselves are not cached since doing so is
 For this reason, this action automatically sets `CARGO_INCREMENTAL=0` to disable
 incremental compilation, so that the Rust compiler doesn't waste time creating
 the additional artifacts required for incremental builds.
+
+If the `add-rust-environment-hash-key` option is `"true"`, the action will always
+update the cache if the `save-if` condition is met, even if the cache is otherwise
+up-to-date. Without this behaviour the cache would not be updated after it was
+initially created. It is recommended to use this option together with a robust
+`save-if` condition, for example only saving caches from `main` / `master` branch's.
 
 The `~/.cargo/registry/src` directory is not cached since it is quicker for Cargo
 to recreate it from the compressed crate archives in `~/.cargo/registry/cache`.
