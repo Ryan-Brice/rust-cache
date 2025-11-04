@@ -54,10 +54,10 @@ async function run() {
 
         // We restored the cache but it is not a full match.
         config.saveState();
-      } else if (core.getInput("add-rust-environment-hash-key").toLowerCase() == "false") {
-        // We restored the cache with a full match but rust environment hash key is disabled,
-        // so we still need to save the state to allow proper cache updates.
-        core.info("Rust environment hash key disabled - saving state for post-job cache re-creation.");
+      } else if (core.getInput("add-rust-environment-hash-key").toLowerCase() == "false" && cacheProvider.name == "github") {
+        // We restored the cache with a full match, but rust environment hash key is disabled,
+        // so we still need to save state to allow proper cache re-creation in post-job step.
+        core.info("Rust environment hash key not set - saving state for post-job cache re-creation.");
         config.saveState();
       }
 
