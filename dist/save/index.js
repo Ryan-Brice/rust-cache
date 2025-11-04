@@ -149372,7 +149372,10 @@ async function run() {
         return;
     }
     try {
-        if (isCacheUpToDate()) {
+        // Skip saving cache if it is up-to-date and we are hashing the Rust environment
+        // as part of the cache key. If we are not hashing the Rust environment, not doing
+        // this check would mean we never update the cache after the initial save.
+        if (isCacheUpToDate() && core.getInput("add-rust-environment-hash-key").toLowerCase() == "true") {
             core.info(`Cache up-to-date.`);
             return;
         }
