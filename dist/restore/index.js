@@ -148751,6 +148751,8 @@ class CacheConfig {
         this.cacheKey = "";
         /** The secondary (restore) key that only contains the prefix and environment */
         this.restoreKey = "";
+        /** Whether the rust environment hash key is included in the cache key */
+        this.rustEnvironmentHashKey = true;
         /** Whether to cache CARGO_HOME/.bin */
         this.cacheBin = true;
         /** The workspace configurations */
@@ -148824,8 +148826,10 @@ class CacheConfig {
             }
         }
         self.keyEnvs = keyEnvs;
+        const rustEnvironmentHashKey = lib_core.getInput("add-rust-environment-hash-key").toLowerCase() == "true";
+        self.rustEnvironmentHashKey = rustEnvironmentHashKey;
         // Add job hash suffix if 'add-rust-environment-hash-key' is true
-        if (lib_core.getInput("add-rust-environment-hash-key").toLowerCase() == "true") {
+        if (rustEnvironmentHashKey === false) {
             key += `-${digest(hasher)}`;
         }
         self.restoreKey = key;
@@ -148846,7 +148850,7 @@ class CacheConfig {
         self.workspaces = workspaces;
         // Add hash suffix of all rust environment lockfiles + manifests if
         // 'add-rust-environment-hash-key' is true
-        if (lib_core.getInput("add-rust-environment-hash-key").toLowerCase() == "true") {
+        if (rustEnvironmentHashKey === false) {
             let keyFiles = await globFiles(".cargo/config.toml\nrust-toolchain\nrust-toolchain.toml");
             const parsedKeyFiles = []; // keyFiles that are parsed, pre-processed and hashed
             hasher = external_crypto_default().createHash("sha1");
@@ -148993,14 +148997,21 @@ class CacheConfig {
         lib_core.info(`    ${this.cacheKey}`);
         lib_core.info(`.. Prefix:`);
         lib_core.info(`  - ${this.keyPrefix}`);
-        lib_core.info(`.. Environment considered:`);
-        lib_core.info(`  - Rust Version: ${this.keyRust}`);
-        for (const env of this.keyEnvs) {
-            lib_core.info(`  - ${env}`);
+        if (this.rustEnvironmentHashKey === false) {
+            lib_core.info(`.. Environment considered:`);
+            lib_core.info(`  - Rust Version: ${this.keyRust}`);
+            for (const env of this.keyEnvs) {
+                lib_core.info(`  - ${env}`);
+            }
         }
-        lib_core.info(`.. Lockfiles considered:`);
-        for (const file of this.keyFiles) {
-            lib_core.info(`  - ${file}`);
+        else {
+            lib_core.info(`.. No Rust environment considered as 'add-rust-environment-hash-key' is 'false'.`);
+        }
+        if (this.keyFiles.length == 0) {
+            lib_core.info(`.. Lockfiles considered:`);
+            for (const file of this.keyFiles) {
+                lib_core.info(`  - ${file}`);
+            }
         }
         lib_core.endGroup();
     }
@@ -149389,6 +149400,7 @@ async function run() {
         const restoreKey = await cacheProvider.cache.restoreCache(config.cachePaths.slice(), key, [config.restoreKey], {
             lookupOnly,
         });
+        const rustEnvironmentHashKey = config.rustEnvironmentHashKey;
         if (restoreKey) {
             const match = restoreKey === key;
             lib_core.info(`${lookupOnly ? "Found" : "Restored from"} cache key "${restoreKey}" full match: ${match}.`);
@@ -149403,7 +149415,7 @@ async function run() {
                 // We restored the cache but it is not a full match.
                 config.saveState();
             }
-            else if (lib_core.getInput("add-rust-environment-hash-key").toLowerCase() == "false" && cacheProvider.name == "github") {
+            else if (rustEnvironmentHashKey === false && cacheProvider.name == "github") {
                 // We restored the cache with a full match, but rust environment hash key is disabled,
                 // so we still need to save state to allow proper cache re-creation in post-job step.
                 lib_core.info("Rust environment hash key not set - saving state for post-job cache re-creation.");

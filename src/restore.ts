@@ -41,6 +41,7 @@ async function run() {
     const restoreKey = await cacheProvider.cache.restoreCache(config.cachePaths.slice(), key, [config.restoreKey], {
       lookupOnly,
     });
+    const rustEnvironmentHashKey = config.rustEnvironmentHashKey
     if (restoreKey) {
       const match = restoreKey === key;
       core.info(`${lookupOnly ? "Found" : "Restored from"} cache key "${restoreKey}" full match: ${match}.`);
@@ -54,7 +55,7 @@ async function run() {
 
         // We restored the cache but it is not a full match.
         config.saveState();
-      } else if (core.getInput("add-rust-environment-hash-key").toLowerCase() == "false" && cacheProvider.name == "github") {
+      } else if (rustEnvironmentHashKey === false && cacheProvider.name == "github") {
         // We restored the cache with a full match, but rust environment hash key is disabled,
         // so we still need to save state to allow proper cache re-creation in post-job step.
         core.info("Rust environment hash key not set - saving state for post-job cache re-creation.");

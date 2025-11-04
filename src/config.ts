@@ -24,6 +24,8 @@ export class CacheConfig {
   public cacheKey = "";
   /** The secondary (restore) key that only contains the prefix and environment */
   public restoreKey = "";
+  /** Whether the rust environment hash key is included in the cache key */
+  public rustEnvironmentHashKey: boolean = true;
 
   /** Whether to cache CARGO_HOME/.bin */
   public cacheBin: boolean = true;
@@ -116,8 +118,11 @@ export class CacheConfig {
 
     self.keyEnvs = keyEnvs;
 
+    const rustEnvironmentHashKey = core.getInput("add-rust-environment-hash-key").toLowerCase() == "true";
+    self.rustEnvironmentHashKey = rustEnvironmentHashKey;
+
     // Add job hash suffix if 'add-rust-environment-hash-key' is true
-    if (core.getInput("add-rust-environment-hash-key").toLowerCase() == "true") {
+    if (rustEnvironmentHashKey === false) {
       key += `-${digest(hasher)}`;
     }
 
@@ -144,7 +149,7 @@ export class CacheConfig {
 
     // Add hash suffix of all rust environment lockfiles + manifests if
     // 'add-rust-environment-hash-key' is true
-    if (core.getInput("add-rust-environment-hash-key").toLowerCase() == "true") {
+    if (rustEnvironmentHashKey === false) {
       let keyFiles = await globFiles(".cargo/config.toml\nrust-toolchain\nrust-toolchain.toml");
       const parsedKeyFiles = []; // keyFiles that are parsed, pre-processed and hashed
 
@@ -320,14 +325,20 @@ export class CacheConfig {
     core.info(`    ${this.cacheKey}`);
     core.info(`.. Prefix:`);
     core.info(`  - ${this.keyPrefix}`);
-    core.info(`.. Environment considered:`);
-    core.info(`  - Rust Version: ${this.keyRust}`);
-    for (const env of this.keyEnvs) {
-      core.info(`  - ${env}`);
+    if (this.rustEnvironmentHashKey === false) {
+      core.info(`.. Environment considered:`);
+      core.info(`  - Rust Version: ${this.keyRust}`);
+      for (const env of this.keyEnvs) {
+        core.info(`  - ${env}`);
+      }
+    } else {
+      core.info(`.. No Rust environment considered as 'add-rust-environment-hash-key' is 'false'.`);
     }
-    core.info(`.. Lockfiles considered:`);
-    for (const file of this.keyFiles) {
-      core.info(`  - ${file}`);
+    if (this.keyFiles.length == 0) {
+      core.info(`.. Lockfiles considered:`);
+      for (const file of this.keyFiles) {
+        core.info(`  - ${file}`);
+      }
     }
     core.endGroup();
   }

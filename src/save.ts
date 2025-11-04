@@ -32,9 +32,11 @@ async function run() {
     config.printInfo(cacheProvider);
     core.info("");
 
+    const rustEnvironmentHashKey = config.rustEnvironmentHashKey
+
     // If rust environment hash key is disabled, delete existing cache entry before
     // saving new cache to avoid failing to save when cache already exists.
-    if (core.getInput("add-rust-environment-hash-key").toLowerCase() == "false" && cacheProvider.name === "github") {
+    if (rustEnvironmentHashKey === false && cacheProvider.name === "github") {
       core.info("Rust environment hash key enabled - deleting existing cache entry if any before saving new cache.");
       try {
         await deleteGHCacheByKey(config.cacheKey);
