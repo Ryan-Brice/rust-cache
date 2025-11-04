@@ -149374,12 +149374,8 @@ async function run() {
     if (!(cacheProvider.cache.isFeatureAvailable() && save === "true")) {
         return;
     }
-    const envHashKey = core.getInput("add-rust-environment-hash-key").toLowerCase() || "true";
     try {
-        // Skip saving cache if it is up-to-date and we are hashing the Rust environment
-        // as part of the cache key. If we are not hashing the Rust environment, not doing
-        // this check would mean we never update the cache after the initial save.
-        if (isCacheUpToDate() && envHashKey == "true") {
+        if (isCacheUpToDate()) {
             core.info(`Cache up-to-date.`);
             return;
         }
@@ -149388,7 +149384,7 @@ async function run() {
         core.info("");
         // If rust environment hash key is disabled, delete existing cache entry before
         // saving new cache to avoid failing to save when cache already exists.
-        if (envHashKey == "false" && cacheProvider.name === "github") {
+        if (core.getInput("add-rust-environment-hash-key").toLowerCase() == "false" && cacheProvider.name === "github") {
             core.info("Rust environment hash key enabled - deleting existing cache entry if any before saving new cache.");
             try {
                 await deleteGHCacheByKey(config.cacheKey);
