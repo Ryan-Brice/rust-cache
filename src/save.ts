@@ -22,7 +22,7 @@ async function run() {
     return;
   }
 
-  const envHashKey = core.getInput("add-rust-environment-hash-key").toLowerCase();
+  const envHashKey = core.getInput("add-rust-environment-hash-key").toLowerCase() || "true";
 
   try {
     // Skip saving cache if it is up-to-date and we are hashing the Rust environment
@@ -37,9 +37,9 @@ async function run() {
     config.printInfo(cacheProvider);
     core.info("");
 
-    // If rust environment hash key is enabled, delete existing cache entry before
+    // If rust environment hash key is disabled, delete existing cache entry before
     // saving new cache to avoid failing to save when cache already exists.
-    if (envHashKey == "true" && cacheProvider.name === "github") {
+    if (envHashKey == "false" && cacheProvider.name === "github") {
       core.info("Rust environment hash key enabled - deleting existing cache entry if any before saving new cache.");
       try {
         await deleteGHCacheByKey(config.cacheKey);
