@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import * as exec from "@actions/exec";
+import * as github from "@actions/github";
 
 import { cleanBin, cleanGit, cleanRegistry, cleanTargetDir } from "./cleanup";
 import { CacheConfig, isCacheUpToDate } from "./config";
@@ -21,11 +22,13 @@ async function run() {
     return;
   }
 
+  const envHashKey = core.getInput("add-rust-environment-hash-key").toLowerCase();
+
   try {
     // Skip saving cache if it is up-to-date and we are hashing the Rust environment
     // as part of the cache key. If we are not hashing the Rust environment, not doing
     // this check would mean we never update the cache after the initial save.
-    if (isCacheUpToDate() && core.getInput("add-rust-environment-hash-key").toLowerCase() == "true") {
+    if (isCacheUpToDate() && envHashKey == "true") {
       core.info(`Cache up-to-date.`);
       return;
     }
@@ -33,6 +36,19 @@ async function run() {
     const config = CacheConfig.fromState();
     config.printInfo(cacheProvider);
     core.info("");
+
+    // If rust environment hash key is enabled, delete existing cache entry before
+    // saving new cache to avoid failing to save when cache already exists.
+    if (envHashKey == "true" && cacheProvider.name === "github") {
+      core.info("Rust environment hash key enabled - deleting existing cache entry if any before saving new cache.");
+      try {
+        await deleteGHCacheByKey(config.cacheKey);
+      } catch (e) {
+        core.warning(`Failed to delete existing cache entry: ${(e as Error).message}`);
+        core.debug((e as Error).stack || "");
+      }
+    }
+
 
     // TODO: remove this once https://github.com/actions/toolkit/pull/553 lands
     if (process.env["RUNNER_OS"] == "macOS") {
@@ -99,4 +115,24 @@ async function macOsWorkaround() {
     // Also see https://github.com/rust-lang/cargo/issues/8603
     await exec.exec("sudo", ["/usr/sbin/purge"], { silent: true });
   } catch {}
+}
+
+async function deleteGHCacheByKey(cacheKey: string) {
+  try {
+    const token = await core.getIDToken() || process.env.GITHUB_TOKEN;
+    if (!token) {
+      throw new Error("GitHub token is required to delete cache when using the github cache provider.");
+    }
+    const octokit = github.getOctokit(token);
+    const context = github.context;
+    await octokit.rest.actions.deleteActionsCacheByKey({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      ref: context.ref,
+      key: cacheKey,
+    });
+    core.info(`Cache with key ${cacheKey} deleted successfully.`);
+  } catch (e) {
+    reportError(e);
+  }
 }

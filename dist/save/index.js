@@ -147452,6 +147452,8 @@ var __webpack_exports__ = {};
 var core = __nccwpck_require__(37484);
 // EXTERNAL MODULE: ./node_modules/@actions/exec/lib/exec.js
 var exec = __nccwpck_require__(95236);
+// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
+var github = __nccwpck_require__(93228);
 // EXTERNAL MODULE: ./node_modules/@actions/io/lib/io.js
 var io = __nccwpck_require__(94994);
 // EXTERNAL MODULE: external "fs"
@@ -149359,6 +149361,7 @@ async function rmRF(dirName) {
 
 
 
+
 process.on("uncaughtException", (e) => {
     core.error(e.message);
     if (e.stack) {
@@ -149371,17 +149374,30 @@ async function run() {
     if (!(cacheProvider.cache.isFeatureAvailable() && save === "true")) {
         return;
     }
+    const envHashKey = core.getInput("add-rust-environment-hash-key").toLowerCase();
     try {
         // Skip saving cache if it is up-to-date and we are hashing the Rust environment
         // as part of the cache key. If we are not hashing the Rust environment, not doing
         // this check would mean we never update the cache after the initial save.
-        if (isCacheUpToDate() && core.getInput("add-rust-environment-hash-key").toLowerCase() == "true") {
+        if (isCacheUpToDate() && envHashKey == "true") {
             core.info(`Cache up-to-date.`);
             return;
         }
         const config = CacheConfig.fromState();
         config.printInfo(cacheProvider);
         core.info("");
+        // If rust environment hash key is enabled, delete existing cache entry before
+        // saving new cache to avoid failing to save when cache already exists.
+        if (envHashKey == "true" && cacheProvider.name === "github") {
+            core.info("Rust environment hash key enabled - deleting existing cache entry if any before saving new cache.");
+            try {
+                await deleteGHCacheByKey(config.cacheKey);
+            }
+            catch (e) {
+                core.warning(`Failed to delete existing cache entry: ${e.message}`);
+                core.debug(e.stack || "");
+            }
+        }
         // TODO: remove this once https://github.com/actions/toolkit/pull/553 lands
         if (process.env["RUNNER_OS"] == "macOS") {
             await macOsWorkaround();
@@ -149446,6 +149462,26 @@ async function macOsWorkaround() {
         await exec.exec("sudo", ["/usr/sbin/purge"], { silent: true });
     }
     catch { }
+}
+async function deleteGHCacheByKey(cacheKey) {
+    try {
+        const token = await core.getIDToken() || process.env.GITHUB_TOKEN;
+        if (!token) {
+            throw new Error("GitHub token is required to delete cache when using the github cache provider.");
+        }
+        const octokit = github.getOctokit(token);
+        const context = github.context;
+        await octokit.rest.actions.deleteActionsCacheByKey({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: context.ref,
+            key: cacheKey,
+        });
+        core.info(`Cache with key ${cacheKey} deleted successfully.`);
+    }
+    catch (e) {
+        reportError(e);
+    }
 }
 
 })();
