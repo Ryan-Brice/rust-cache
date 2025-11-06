@@ -61,9 +61,9 @@ inputs:
     required: false
     default: "false"
   github-token:
-    description: "The GitHub token to use when the cache-provider is set to github. Defaults to 'secrets.GITHUB_TOKEN' if not provided."
+    description: "The GitHub token to use when the cache-provider is set to github. Defaults to 'github.token' if not provided."
     required: false
-    default: ${{ secrets.GITHUB_TOKEN }}
+    default: ${{ github.token }}
 outputs:
   cache-hit:
     description: "A boolean value that indicates an exact match was found."
